@@ -7,11 +7,11 @@ Details of A2C,PPO and DDPG can be found in papers:
 - **DDPG(Deep Determinstic Policy Gradient) [Continuous control with deep reinforcement learning](https://arxiv.org/abs/1509.02971.pdf)** 
 
 We test our implementation mainly in the following environment, which we provides a env wrapper for different types of environments:
-- **ToyDiscrete(CartPole,MountainCar...)**
-- **ToyContinuous(Pendulum,Acrobot...)**
-- **MuJoCo(HalfCheetah,Walker2D,Ant,Swimmer...)**
-- **Atari**
-- **DMLab**
+- ToyDiscrete(CartPole,MountainCar...)
+- ToyContinuous(Pendulum,Acrobot...)
+- MuJoCo(HalfCheetah,Walker2D,Ant,Swimmer...)
+- Atari
+- DMLab
 
 For MuJoCo and DMLab environment wrappers, you need to install the MuJoCo and DeepMind Lab in the computer according to the tutorials.
 - MuJoCo-[https://github.com/openai/mujoco-py](https://github.com/openai/mujoco-py)
