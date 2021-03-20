@@ -14,8 +14,8 @@ We test our implementation mainly in the following environment, which we provide
 - **DMLab**
 
 For MuJoCo and DMLab environment wrappers, you need to install the MuJoCo and DeepMind Lab in the computer according to the tutorials.
-MuJoCo-[https://github.com/openai/mujoco-py](https://github.com/openai/mujoco-py)
-DMLab-[https://github.com/deepmind/lab](https://github.com/deepmind/lab)
+- MuJoCo-[https://github.com/openai/mujoco-py](https://github.com/openai/mujoco-py)
+- DMLab-[https://github.com/deepmind/lab](https://github.com/deepmind/lab)
 
 ##### Tricks #####
 - Observation Normalization
