@@ -21,7 +21,8 @@ from envs.atari_wrapper import ATARI
 #Basically, VPG can only update pi(s) for one iteration with out the importance sampling,but we can test the performance with
 #multiple update times to see what will happen
 class Worker_Thread(object):
-    def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,obs_normalizer,
+    def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,
+                 use_obs_norm,obs_normalizer,use_rew_norm,rew_normalizer,
                  hidden_sizes=(64,64,64,),gamma=0.99,lam=0.95,nsteps=256,lr_rate=3e-4,
                  ent_coef=0.01,max_grad_norm=0.5,train_vi_iters=20,
                  train_pi_iters=1,total_timesteps=2e6,ckpt_dir="./tmp/"):
@@ -43,6 +44,7 @@ class Worker_Thread(object):
         
         self.current_timesteps = 0
         self.current_episodes = 0
+        self.gamma = gamma
 
         #model path
         self.ckpt_dir = ckpt_dir + self.env_name + "-" + str(self.env_seed) + "/model/"
@@ -65,7 +67,10 @@ class Worker_Thread(object):
         
         self.a2c = A2C(self.ob_space,self.ac_space,self.session,hidden_sizes,ent_coef,lr_rate,max_grad_norm,total_timesteps)
         self.local_memory = Local_Memory(self.ob_space,self.ac_space,nsteps,gamma,lam)
+        self.use_obs_norm = use_obs_norm
+        self.use_rew_norm = use_rew_norm
         self.obs_normalizer = obs_normalizer
+        self.rew_normalizer = rew_normalizer
         self.global_memory = global_memory
 
         if len(os.listdir(self.ckpt_dir))!=0:
@@ -104,8 +109,8 @@ class Worker_Thread(object):
             self.current_episodes += 1
             done = False
             obs = self.env.reset()
-            self.obs_normalizer.store(obs)
-            obs = self.obs_normalizer.normalize(obs)
+            if self.use_obs_norm:
+                obs = self.obs_normalizer.normalize(obs)
 
             episode_score = 0
             episode_frames = []
@@ -113,23 +118,29 @@ class Worker_Thread(object):
 
             while not done:
                 self.current_timesteps += 1
-                #if self.current_episodes%100 == 0 and self.thread_id == 0:
-                    #episode_frames.append(self.env.get_rgb())
+                if self.current_episodes%100 == 0 and self.thread_id == 0:
+                    episode_frames.append(self.env.get_rgb())
                 
                 a,v_t = self.session.run(self.a2c.get_action_ops,feed_dict={self.a2c.x_ph:np.expand_dims(obs,0)})
                 next_obs,reward,done,info = self.env.step(a[0])
-                self.obs_normalizer.store(next_obs)
-                next_obs = self.obs_normalizer.normalize(next_obs)
+                if self.use_obs_norm:
+                    next_obs = self.obs_normalizer.normalize(next_obs)
 
-                self.local_memory.store(obs,a,reward,v_t)
+                if self.use_rew_norm:
+                    self.local_memory.store(obs,a,self.rew_normalizer.normalize_without_mean(reward),v_t)
+                else:
+                    self.local_memory.store(obs,a,reward,v_t)
+
                 if self.local_memory.full():
                     val = self.session.run(self.a2c.v,feed_dict={self.a2c.x_ph:np.expand_dims(next_obs,0)}) * (1-done)
                     self.local_memory.finish_path(val)
                     self.synchorinize()
                 
+                episode_rewards.append(reward)
                 episode_score+=reward
                 obs = next_obs
             
+            self.rew_normalizer.store(episode_rewards,self.gamma)
             self.train_epi_score.append([self.current_episodes,episode_score])
             self.train_step_score.append([self.current_timesteps,episode_score])
             self.local_memory.finish_path(0)
@@ -143,7 +154,7 @@ class Worker_Thread(object):
                 np.save(self.step_score_path,np.array(self.train_step_score))
                 if self.thread_id == 0:
                     self.a2c.save_model(self.ckpt_path)
-                    #imageio.minsave(self.video_dir + str(self.current_episodes) + ".gif",episode_frames,'GIF',duration=0.02)
+                    imageio.mimsave(self.video_dir + str(self.current_episodes) + ".gif",episode_frames,'GIF',duration=0.02)
 
 
 

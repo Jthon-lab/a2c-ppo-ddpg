@@ -18,8 +18,8 @@ def get_args():
     parser.add_argument("--env_seed",type=int,default=1000)
     parser.add_argument("--thread_num",type=int,default=8)
     parser.add_argument("--gamma",type=float,default=0.99)
-    parser.add_argument("--q_lr_rate",type=float,default=5e-4)
-    parser.add_argument("--pi_lr_rate",type=float,default=3e-4)
+    parser.add_argument("--q_lr_rate",type=float,default=4e-4)
+    parser.add_argument("--pi_lr_rate",type=float,default=2e-4)
 
     parser.add_argument("--update_freq",type=int,default=100)
     parser.add_argument("--minibatch_size",type=int,default=128)
@@ -29,6 +29,9 @@ def get_args():
     parser.add_argument("--tau",type=float,default=0.001)
     parser.add_argument("--total_timesteps",type=float,default=2e5)
     parser.add_argument("--timelimit",type=int,default=1000)
+
+    parser.add_argument("--use_obs_norm",type=bool,default=True)
+    
     args = parser.parse_known_args()[0]
     return args
 
@@ -46,6 +49,7 @@ ac_space = env.action_space
 lock = threading.Condition()
 session = tf.InteractiveSession()
 memory = mem_utils.Memory_Buffer(args.thread_num,ob_space,ac_space,lock,args.buffer_size,args.minibatch_size)
+
 obs_normalizer = norm_utils.Running_Estimator(ob_space.shape,lock)
 
 if len(ob_space.shape) == 3: #use cnn
@@ -57,7 +61,7 @@ else:
 
 threads = []
 for i in range(args.thread_num):
-    threads.append(Worker_Thread(i,args.thread_num,make_env_fn,session,lock,memory,obs_normalizer,
+    threads.append(Worker_Thread(i,args.thread_num,make_env_fn,session,lock,memory,args.use_obs_norm,obs_normalizer,
                                  hidden_sizes,args.minibatch_size,args.start_size,args.update_freq,args.gamma,
                                  args.pi_lr_rate,args.q_lr_rate,args.noise_ratio,args.tau,args.total_timesteps))
 

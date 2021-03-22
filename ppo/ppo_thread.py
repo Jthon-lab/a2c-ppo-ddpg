@@ -17,7 +17,8 @@ from envs.dmlab_wrapper import DMLab
 from envs.atari_wrapper import ATARI
 
 class Worker_Thread(object):
-    def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,obs_normalizer,
+    def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,
+                 use_obs_norm,obs_normalizer,use_rew_norm,rew_normalizer,
                  hidden_sizes=(64,64,64,),gamma=0.99,lam=0.95,
                  clip_ratio=0.2,nsteps=256,lr_rate=3e-4,value_coef=0.5,ent_coef=0.01,max_grad_norm=0.5,
                  train_iters=10,total_timesteps=2e6,ckpt_dir="./tmp/"):
@@ -34,9 +35,12 @@ class Worker_Thread(object):
 
         self.train_iters = train_iters
         self.total_timesteps = total_timesteps
-        
+        self.gamma = gamma
         self.current_timesteps = 0
         self.current_episodes = 0
+
+        self.use_obs_norm = use_obs_norm
+        self.use_rew_norm = use_rew_norm
 
         #model path
         self.ckpt_dir = ckpt_dir + self.env_name + "-" + str(self.env_seed) + "/model/"
@@ -60,6 +64,7 @@ class Worker_Thread(object):
         self.ppo = PPO(self.ob_space,self.ac_space,self.session,hidden_sizes,clip_ratio,value_coef,ent_coef,lr_rate,max_grad_norm,total_timesteps)
         self.local_memory = Local_Memory(self.ob_space,self.ac_space,nsteps,gamma,lam)
         self.obs_normalizer = obs_normalizer
+        self.rew_normalizer = rew_normalizer
         self.global_memory = global_memory
 
         if len(os.listdir(self.ckpt_dir))!=0:
@@ -89,14 +94,15 @@ class Worker_Thread(object):
             obs_batch,act_batch,adv_batch,ret_batch,logp_old_batch = self.global_memory.get()
             self.ppo.update(obs_batch,act_batch,adv_batch,ret_batch,logp_old_batch)
         self.global_memory.clear()
-    
+
     def work(self):
         while self.current_timesteps < self.total_timesteps:
             self.current_episodes += 1
             done = False
 
             obs = self.env.reset()
-            obs = self.obs_normalizer.normalize(obs)
+            if self.use_obs_norm:
+                obs = self.obs_normalizer.normalize(obs)
 
             episode_score = 0
             episode_frames = []
@@ -109,21 +115,29 @@ class Worker_Thread(object):
                 a,v_t,logp_t = self.session.run(self.ppo.get_action_ops,feed_dict={self.ppo.x_ph:np.expand_dims(obs,0)})
                 
                 next_obs,reward,done,info = self.env.step(a[0])
-                next_obs = self.obs_normalizer.normalize(next_obs)
+                if self.use_obs_norm:
+                    next_obs = self.obs_normalizer.normalize(next_obs)
+                #print(self.rew_normalizer.normalize_without_mean(reward))
 
-                self.local_memory.store(obs,a,reward,v_t,logp_t)
+                if self.use_rew_norm:
+                    self.local_memory.store(obs,a,self.rew_normalizer.normalize_without_mean(reward),v_t,logp_t)
+                else:
+                    self.local_memory.store(obs,a,reward,v_t,logp_t)
+                
                 if self.local_memory.full():
                     val = self.session.run(self.ppo.v,feed_dict={self.ppo.x_ph:np.expand_dims(next_obs,0)}) * (1-done)
                     self.local_memory.finish_path(val)
                     self.synchorinize()
                 
+                episode_rewards.append(reward)
                 episode_score+=reward
                 obs = next_obs
             
             self.train_epi_score.append([self.current_episodes,episode_score])
             self.train_step_score.append([self.current_timesteps,episode_score])
             self.local_memory.finish_path(0)
-
+            self.rew_normalizer.store(episode_rewards,self.gamma)
+            
             if self.current_episodes%10 == 0:
                 average_score = np.mean(np.array(self.train_epi_score)[:,1][-20:])
                 max_score = np.max(np.array(np.array(self.train_epi_score)[:,1][-20:]))

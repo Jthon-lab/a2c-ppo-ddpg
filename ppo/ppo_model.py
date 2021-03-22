@@ -53,7 +53,7 @@ class PPO(object):
         #ppo restrict the difference between the old policy and the current policy
         with tf.variable_scope("optimization",reuse=tf.AUTO_REUSE):
             ratio = tf.exp(self.logp - self.logp_old_ph)
-            #min_adv = tf.where(self.adv_ph>0,(1+self.clip_ratio)*self.adv_ph,(1-self.clip_ratio)*self.adv_ph)
+            min_adv = tf.where(self.adv_ph>0,(1+self.clip_ratio)*self.adv_ph,(1-self.clip_ratio)*self.adv_ph)
             surr1 = ratio * self.adv_ph
             surr2 = tf.clip_by_value(ratio,1-self.clip_ratio,1+self.clip_ratio)*self.adv_ph
             self.pi_loss = -tf.reduce_mean(tf.minimum(surr1,surr2))

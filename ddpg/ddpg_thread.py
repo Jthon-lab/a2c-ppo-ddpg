@@ -18,7 +18,8 @@ from envs.dmlab_wrapper import DMLab
 from envs.atari_wrapper import ATARI
 
 class Worker_Thread(object):
-    def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,obs_normalizer,
+    def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,
+                 use_obs_norm,obs_normalizer,
                  hidden_sizes=(64,64,64,),batch_size=64,start_size=2000,update_freq=4,
                  gamma=0.99,pi_lr_rate=1e-4,q_lr_rate=5e-4,noise_ratio=0.1,tau=0.01,
                  total_timesteps=2e6,ckpt_dir="./tmp/"):
@@ -35,6 +36,7 @@ class Worker_Thread(object):
 
         self.action_low = self.ac_space.low
         self.action_high = self.ac_space.high
+        self.gamma = gamma
 
         self.batch_size = batch_size
         self.start_size = start_size
@@ -47,7 +49,6 @@ class Worker_Thread(object):
         self.noise_decay = noise_ratio / self.total_timesteps
 
         self.current_timesteps,self.current_episodes = 0,0
-
         #model path
         self.ckpt_dir = ckpt_dir + self.env_name + "-" + str(self.env_seed) + "/model/"
         net_utils.make_dir(self.ckpt_dir)
@@ -67,7 +68,10 @@ class Worker_Thread(object):
         self.video_dir = ckpt_dir + self.env_name + "-" + str(self.env_seed) + "/video/"
         net_utils.make_dir(self.video_dir)
         self.ddpg = DDPG(self.ob_space,self.ac_space,self.session,hidden_sizes,pi_lr_rate,q_lr_rate,tau,gamma,total_timesteps)
+
         self.obs_normalizer = obs_normalizer
+        self.use_obs_norm = use_obs_norm
+
         self.global_memory = global_memory
 
         if len(os.listdir(self.ckpt_dir))!=0:
@@ -95,7 +99,7 @@ class Worker_Thread(object):
             self.lock.release()
     
     def update(self):
-        for i in range(self.update_freq*self.thread_num//1):
+        for i in range(self.update_freq*self.thread_num//2):
             s1_batch,s2_batch,act_batch,rews_batch,dones_batch = self.global_memory.get_batch()
             self.ddpg.update(s1_batch,s2_batch,act_batch,rews_batch,dones_batch)
 
@@ -104,10 +108,12 @@ class Worker_Thread(object):
             self.current_episodes += 1
             done = False
             obs = self.env.reset()
-            obs = self.obs_normalizer.normalize(obs)
+            if self.use_obs_norm == True:
+                obs = self.obs_normalizer.normalize(obs)
 
             episode_score = 0
             episode_frames = []
+            episode_rewards = []
 
             while not done:
                 self.current_timesteps += 1
@@ -120,11 +126,14 @@ class Worker_Thread(object):
                 else:
                     a = np.clip(self.ddpg.get_action(obs) + self.noise_ratio * self.noise_model(),self.action_low,self.action_high)
                 next_obs,reward,done,info = self.env.step(a)
-                next_obs = self.obs_normalizer.normalize(next_obs)
+                if self.use_obs_norm == True:
+                    next_obs = self.obs_normalizer.normalize(next_obs)
                 self.global_memory.store(obs,next_obs,a,reward,done)
+
                 if self.global_memory.current_size >= self.start_size and self.current_timesteps%self.update_freq == 0:
                     self.synchorinize()
 
+                episode_rewards.append(reward)
                 episode_score+=reward
                 obs = next_obs
             
@@ -134,7 +143,6 @@ class Worker_Thread(object):
                 average_score = np.mean(np.array(self.train_epi_score)[:,1][-20:])
                 max_score = np.max(np.array(np.array(self.train_epi_score)[:,1][-20:]))
                 print("Worker:%d,episode %d:%d average score=%f,max_score=%f,frames=%d"%(self.thread_id,self.current_episodes-10,self.current_episodes,average_score,max_score,self.current_timesteps))
-            
             
             if self.current_episodes%100 == 0:
                 np.save(self.epi_score_path,np.array(self.train_epi_score))
