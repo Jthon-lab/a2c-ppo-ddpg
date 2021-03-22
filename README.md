@@ -34,13 +34,14 @@ For MuJoCo and DMLab environment wrappers, you need to install the MuJoCo and De
 - Hyperbolic tan activations
 - ...
 ### Experimental Result ###
-1. ToyEnvironments
+1. **ToyEnvironments**
 We run a2c,ppo and ddpg in CartPole, Acrobot and Pendulum environments as a starting task, and the learning process is shown below, each algorithm run 3 random seed.
 ![ToyEnvironment](/figures/toy_curve.png)
-2. MuJoCo
-3. Atari
-4. DMLab
+2. **MuJoCo**
+3. **Atari**
+4. **DMLab**
 For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below.
+![MazeEnv](/figures/maze-topdown.png)
 
 ### Conclusion ###
 - All of these RL algorithm are sensitive to hyper-parameters and need to fine-tune the parameters for different environments.
