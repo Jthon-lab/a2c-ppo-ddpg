@@ -35,12 +35,14 @@ For MuJoCo and DMLab environment wrappers, you need to install the MuJoCo and De
 - ...
 ### Experimental Result ###
 1. **ToyEnvironments**
-We run a2c,ppo and ddpg in CartPole, Acrobot and Pendulum environments as a starting task, and the learning process is shown below, each algorithm run 3 random seed.
+We run a2c,ppo and ddpg in CartPole, Acrobot and Pendulum environments as a starting task, and the learning process is shown below, each algorithm runs 3 random seed.
 ![ToyEnvironment](/figures/toy_curve.png)
 2. **MuJoCo**
+We run a2c,ppo and ddpg in HalfCheetah, Walker2d, Swimmer and Ant and each algorithm runs for 3 random seed. The learning curve is shown below.
 3. **Atari**
+Not finished Yet.
 4. **DMLab**
-For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below.
+For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below. The agent was spawn in a fixed point and will be rewarded for +10 if it arrived at the destination point which is also fixed during training. 
 ![MazeEnv](/figures/maze-topdown.png)
 
 ### Conclusion ###
