@@ -19,18 +19,33 @@ For MuJoCo and DMLab environment wrappers, you need to install the MuJoCo and De
 
 ### Tricks ###
 - Observation Normalization
+- Reward Scaling and Clipping 
 - Advantage Normalization
 - Generalized Advantage Estimation ([GAE](https://arxiv.org/pdf/1506.02438.pdf))
 - Parallel Environments
 - Policy Gradient Clipping
 
 ### TODOs ###
-- Reward Clipping
-- Value Function Normalization
+- Value Function Clipping
 - Parameter Clipping
 - Adam Learning rate Annealing
 - Improved version of DDPG(D4PG)
+- Orthogonal initialization and layer scaling
+- Hyperbolic tan activations
 - ...
 ### Experimental Result ###
+1. ToyContinuous
+2. MuJoCo
+3. Atari
+4. DMLab
+For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below.
+
+### Conclusion ###
+- All of these RL algorithm are sensitive to hyper-parameters and need to fine-tune the parameters for different environments.
+- Although in some environments, DDPG learns faster than A2C and PPO, but in most cases, PPO shows a more stable learning process without much delicate hyper-parameters settings.
+- In sparse reward settings, pure RL algorithm may struggle to finish the task.
+- Tricks are essential to the RL algorithms. 
+
+
 
 
