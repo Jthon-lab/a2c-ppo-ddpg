@@ -3,10 +3,9 @@ import numpy as np
 import gym
 import os
 import cv2
-import imageio
-
 import network_utils as net_utils
 import normalize_utils as norm_utils
+import imageio
 from ddpg_model import DDPG
 from noise_utils import OrnsteinUhlenbeckActionNoise
 
@@ -20,8 +19,8 @@ from envs.atari_wrapper import ATARI
 class Worker_Thread(object):
     def __init__(self,thread_id,thread_num,env_fn,session,lock,global_memory,
                  use_obs_norm,obs_normalizer,
-                 hidden_sizes=(64,64,64,),batch_size=64,start_size=2000,update_freq=4,
-                 gamma=0.99,pi_lr_rate=1e-4,q_lr_rate=5e-4,noise_ratio=0.1,tau=0.01,
+                 hidden_sizes=(64,64,64,),batch_size=64, start_size=2000, update_freq = 50, stepk = 1,
+                 gamma=0.99,pi_lr_rate=1e-4, q_lr_rate=5e-4, noise_ratio=0.1, tau=0.01,
                  total_timesteps=2e6,ckpt_dir="./tmp/"):
         self.thread_id = thread_id
         self.thread_num = thread_num
@@ -37,18 +36,18 @@ class Worker_Thread(object):
         self.action_low = self.ac_space.low
         self.action_high = self.ac_space.high
         self.gamma = gamma
-
         self.batch_size = batch_size
         self.start_size = start_size
         self.update_freq = update_freq
         self.total_timesteps = total_timesteps
-
-        self.noise_ratio = noise_ratio
+        
+        self.stepk = stepk
         self.noise_ratio = noise_ratio
         self.noise_model = OrnsteinUhlenbeckActionNoise(mu=np.zeros(self.ac_space.shape,np.float32),sigma=0.3*np.ones(self.ac_space.shape,np.float32))
         self.noise_decay = noise_ratio / self.total_timesteps
 
         self.current_timesteps,self.current_episodes = 0,0
+
         #model path
         self.ckpt_dir = ckpt_dir + self.env_name + "-" + str(self.env_seed) + "/model/"
         net_utils.make_dir(self.ckpt_dir)
@@ -68,9 +67,9 @@ class Worker_Thread(object):
         self.video_dir = ckpt_dir + self.env_name + "-" + str(self.env_seed) + "/video/"
         net_utils.make_dir(self.video_dir)
         self.ddpg = DDPG(self.ob_space,self.ac_space,self.session,hidden_sizes,pi_lr_rate,q_lr_rate,tau,gamma,total_timesteps)
-
-        self.obs_normalizer = obs_normalizer
         self.use_obs_norm = use_obs_norm
+        self.obs_normalizer = obs_normalizer
+        
 
         self.global_memory = global_memory
 
@@ -86,20 +85,9 @@ class Worker_Thread(object):
 
         self.train_epi_score = []
         self.train_step_score = []
-    
-    def synchorinize(self):
-        if self.lock.acquire():
-            self.global_memory.collect_thread()
-            if self.global_memory.full():
-                self.update()
-                self.global_memory.clear_thread()
-                self.lock.notify_all()
-            else:
-                self.lock.wait()
-            self.lock.release()
-    
+
     def update(self):
-        for i in range(self.update_freq*self.thread_num//2):
+        for i in range(self.update_freq):
             s1_batch,s2_batch,act_batch,rews_batch,dones_batch = self.global_memory.get_batch()
             self.ddpg.update(s1_batch,s2_batch,act_batch,rews_batch,dones_batch)
 
@@ -108,8 +96,12 @@ class Worker_Thread(object):
             self.current_episodes += 1
             done = False
             obs = self.env.reset()
-            if self.use_obs_norm == True:
+            if self.use_obs_norm:
                 obs = self.obs_normalizer.normalize(obs)
+            #for k-step returns
+            window_obs = []
+            window_act = []
+            window_reward = []
 
             episode_score = 0
             episode_frames = []
@@ -118,7 +110,6 @@ class Worker_Thread(object):
             while not done:
                 self.current_timesteps += 1
                 self.noise_ratio = np.clip(self.noise_ratio - self.noise_decay,0,1)
-
                 if self.current_episodes%100 == 0 and self.thread_id == 0:
                     episode_frames.append(self.env.get_rgb())
                 if self.current_timesteps<(self.start_size//self.thread_num):
@@ -126,12 +117,23 @@ class Worker_Thread(object):
                 else:
                     a = np.clip(self.ddpg.get_action(obs) + self.noise_ratio * self.noise_model(),self.action_low,self.action_high)
                 next_obs,reward,done,info = self.env.step(a)
-                if self.use_obs_norm == True:
+                if self.use_obs_norm:
                     next_obs = self.obs_normalizer.normalize(next_obs)
-                self.global_memory.store(obs,next_obs,a,reward,done)
-
+                #self.global_memory.store(obs,next_obs,a,[reward],done)
+                #adjust window rewards to time step k
+                    
+                window_obs.append(obs)
+                window_act.append(a)
+                window_reward.append(reward)
+                assert len(window_obs) == len(window_act) == len(window_reward)
+                if len(window_reward) > self.stepk:
+                    self.global_memory.store(window_obs[0],next_obs,window_act[0],np.array(window_reward,np.float32),done)
+                    window_obs = window_obs[1:len(window_obs)]
+                    window_act = window_act[1:len(window_act)]
+                    window_reward = window_reward[1:len(window_reward)]
+                
                 if self.global_memory.current_size >= self.start_size and self.current_timesteps%self.update_freq == 0:
-                    self.synchorinize()
+                    self.update()
 
                 episode_rewards.append(reward)
                 episode_score+=reward
@@ -150,3 +152,5 @@ class Worker_Thread(object):
                 if self.thread_id == 0:
                     self.ddpg.save_model(self.ckpt_path)
                     imageio.mimsave(self.video_dir + str(self.current_episodes) + ".gif",episode_frames,'GIF',duration=0.02)
+
+   

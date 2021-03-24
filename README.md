@@ -32,7 +32,9 @@ For MuJoCo and DMLab environment wrappers, you need to install the MuJoCo and De
 - Improved version of DDPG(D4PG)
 - Orthogonal initialization and layer scaling
 - Hyperbolic tan activations
+- **Hyper-parameter tuning**, for a better performance, we need time to select a proper hyper-parameters for each environments
 - ...
+
 ### Experimental Result ###
 1. **ToyEnvironments**
 We run a2c,ppo and ddpg in CartPole, Acrobot and Pendulum environments as a starting task, and the learning process is shown below, each algorithm runs 3 random seed.
@@ -42,7 +44,7 @@ We run a2c,ppo and ddpg in HalfCheetah, Walker2d, Swimmer and Ant and each algor
 3. **Atari**
 Not finished Yet.
 4. **DMLab**
-For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below. The agent was spawn in a fixed point and will be rewarded for +10 if it arrived at the destination point which is also fixed during training. 
+For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below. The agent was spawn in a fixed point and will be rewarded for +10 if it arrived at the destination point which is also fixed during training. In maze navigation task, the agent need to select action among {MOVE_FORWARD,TURN_LEFT,TURN_RIGHT} at each time step.
 ![MazeEnv](/figures/maze-topdown.png)
 
 ### Conclusion ###
