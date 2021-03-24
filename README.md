@@ -41,6 +41,7 @@ We run a2c,ppo and ddpg in CartPole, Acrobot and Pendulum environments as a star
 ![ToyEnvironment](/figures/toy_curve.png)
 2. **MuJoCo**
 We run a2c,ppo and ddpg in HalfCheetah, Walker2d, Swimmer and Ant and each algorithm runs for 3 random seed. The learning curve is shown below.
+![MuJoCoEnv](/figures/MuJoCo.png)
 3. **Atari**
 Not finished Yet.
 4. **DMLab**
