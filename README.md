@@ -45,8 +45,9 @@ We run a2c,ppo and ddpg in HalfCheetah, Walker2d, Swimmer and Ant and each algor
 3. **Atari**
 Not finished Yet.
 4. **DMLab**
-For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below. The agent was spawn in a fixed point and will be rewarded for +10 if it arrived at the destination point which is also fixed during training. In maze navigation task, the agent need to select action among {MOVE_FORWARD,TURN_LEFT,TURN_RIGHT} at each time step.
+For DeepMind Lab environment, we designed serveral basic and easy maze navigation tasks to test the performance of A2C and PPO, the top-down view of three different mazes and scores are shown below. The agent was spawn in a fixed point and will be rewarded for +10 if it arrived at the destination point which is also fixed during training. In maze navigation task, the agent need to select action among {MOVE_FORWARD,TURN_LEFT,TURN_RIGHT} at each time step. In the complex maze navigation task, both algorithm failed to navigate to the target location due to limited exploration ability of them.
 ![MazeEnv](/figures/maze-topdown.png)
+![MazeEnvResult](/figures/maze_curve.png)
 
 ### Conclusion ###
 - All of these RL algorithm are sensitive to hyper-parameters and need to fine-tune the parameters for different environments.
